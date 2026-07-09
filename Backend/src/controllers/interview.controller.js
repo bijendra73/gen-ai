@@ -43,10 +43,10 @@ async function generateInterViewReportController(req, res) {
 
         // Propagate AI service unavailability as 503
         if (err && (err?.error?.code === 503 || err?.status === "UNAVAILABLE")) {
-            return res.status(503).json({ message: "AI service temporarily unavailable. Try again later." })
+            return res.status(503).json({ message: "AI service temporarily unavailable. Try again later.", error: err.message })
         }
 
-        return res.status(500).json({ message: "Internal server error" })
+        return res.status(500).json({ message: "Internal server error", error: err && err.message ? err.message : String(err) })
     }
 
 }

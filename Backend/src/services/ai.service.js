@@ -74,7 +74,15 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         }
     })
 
-    return JSON.parse(response.text)
+    if (!response || !response.text) {
+        throw new Error("AI service returned empty response")
+    }
+
+    try {
+        return JSON.parse(response.text)
+    } catch (err) {
+        throw new Error("Failed to parse AI response: " + (err && err.message ? err.message : String(err)))
+    }
 
 
 }
@@ -150,7 +158,16 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
         }
     })
 
-    const jsonContent = JSON.parse(response.text)
+    if (!response || !response.text) {
+        throw new Error("AI service returned empty response")
+    }
+
+    let jsonContent
+    try {
+        jsonContent = JSON.parse(response.text)
+    } catch (err) {
+        throw new Error("Failed to parse AI response for resume PDF: " + (err && err.message ? err.message : String(err)))
+    }
 
     const pdfBuffer = await generatePdfFromHtml(jsonContent.html)
 
