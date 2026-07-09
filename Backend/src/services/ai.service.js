@@ -41,7 +41,31 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
                         Job Description: ${jobDescription}
 `
 
-    const response = await ai.models.generateContent({
+    // helper: retry wrapper for transient AI errors
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+    const callGenerateContentWithRetries = async (opts, maxAttempts = 3) => {
+        let attempt = 0
+        let lastErr
+        while (attempt < maxAttempts) {
+            try {
+                const resp = await ai.models.generateContent(opts)
+                return resp
+            } catch (err) {
+                lastErr = err
+                // detect transient/unavailable errors from the GenAI client
+                const isTransient = (err && ((err.error && err.error.code === 503) || err.status === "UNAVAILABLE" || (err.statusCode && err.statusCode >= 500)))
+                attempt++
+                if (!isTransient || attempt >= maxAttempts) break
+                // exponential backoff
+                const backoffMs = 500 * Math.pow(2, attempt - 1)
+                await sleep(backoffMs)
+            }
+        }
+        throw lastErr
+    }
+
+    const response = await callGenerateContentWithRetries({
         model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
@@ -95,7 +119,29 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
                         The resume should not be so lengthy, it should ideally be 1-2 pages long when converted to PDF. Focus on quality rather than quantity and make sure to include all the relevant information that can increase the candidate's chances of getting an interview call for the given job description.
                     `
 
-    const response = await ai.models.generateContent({
+    // reuse retry wrapper used above
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+    const callGenerateContentWithRetries = async (opts, maxAttempts = 3) => {
+        let attempt = 0
+        let lastErr
+        while (attempt < maxAttempts) {
+            try {
+                const resp = await ai.models.generateContent(opts)
+                return resp
+            } catch (err) {
+                lastErr = err
+                const isTransient = (err && ((err.error && err.error.code === 503) || err.status === "UNAVAILABLE" || (err.statusCode && err.statusCode >= 500)))
+                attempt++
+                if (!isTransient || attempt >= maxAttempts) break
+                const backoffMs = 500 * Math.pow(2, attempt - 1)
+                await sleep(backoffMs)
+            }
+        }
+        throw lastErr
+    }
+
+    const response = await callGenerateContentWithRetries({
         model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
@@ -103,7 +149,6 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
             responseSchema: zodToJsonSchema(resumePdfSchema),
         }
     })
-
 
     const jsonContent = JSON.parse(response.text)
 

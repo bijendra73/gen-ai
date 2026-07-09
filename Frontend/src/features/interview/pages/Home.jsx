@@ -15,6 +15,13 @@ const Home = () => {
     const handleGenerateReport = async () => {
         const resumeFile = resumeInputRef.current.files[ 0 ]
         const data = await generateReport({ jobDescription, selfDescription, resumeFile })
+        if (!data) {
+            // API failed or returned no report; surface a user-friendly message
+            console.error('Failed to generate interview report:', data)
+            alert('Failed to generate interview report. Please try again later.')
+            return
+        }
+
         navigate(`/interview/${data._id}`)
     }
 
