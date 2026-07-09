@@ -10,27 +10,44 @@ const interviewReportModel = require("../models/interviewReport.model")
  */
 async function generateInterViewReportController(req, res) {
 
-    const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText()
-    const { selfDescription, jobDescription } = req.body
+    try {
+        const { selfDescription, jobDescription } = req.body
 
-    const interViewReportByAi = await generateInterviewReport({
-        resume: resumeContent.text,
-        selfDescription,
-        jobDescription
-    })
+        // parse resume text only if a file was uploaded
+        let resumeText = ""
+        if (req.file && req.file.buffer) {
+            const data = await pdfParse(req.file.buffer)
+            resumeText = data && data.text ? data.text : ""
+        }
 
-    const interviewReport = await interviewReportModel.create({
-        user: req.user.id,
-        resume: resumeContent.text,
-        selfDescription,
-        jobDescription,
-        ...interViewReportByAi
-    })
+        const interViewReportByAi = await generateInterviewReport({
+            resume: resumeText,
+            selfDescription,
+            jobDescription
+        })
 
-    res.status(201).json({
-        message: "Interview report generated successfully.",
-        interviewReport
-    })
+        const interviewReport = await interviewReportModel.create({
+            user: req.user.id,
+            resume: resumeText,
+            selfDescription,
+            jobDescription,
+            ...interViewReportByAi
+        })
+
+        return res.status(201).json({
+            message: "Interview report generated successfully.",
+            interviewReport
+        })
+    } catch (err) {
+        console.error("generateInterViewReportController error:", err)
+
+        // Propagate AI service unavailability as 503
+        if (err && (err?.error?.code === 503 || err?.status === "UNAVAILABLE")) {
+            return res.status(503).json({ message: "AI service temporarily unavailable. Try again later." })
+        }
+
+        return res.status(500).json({ message: "Internal server error" })
+    }
 
 }
 
