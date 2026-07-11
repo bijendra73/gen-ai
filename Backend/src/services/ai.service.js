@@ -38,6 +38,11 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
     
     CRITICAL: You must return a single JSON object matching the exact structure below. Do not include markdown wraps like \`\`\`json.
     
+    OUTPUT CONSTRAINTS:
+    1. "technicalQuestions": Generate exactly 3 to 4 highly targeted technical questions.
+    2. "behavioralQuestions": Generate exactly 3 to 4 situational behavioral questions.
+    3. "preparationPlan": Generate a strict 7-day plan (exactly 7 separate array objects, numbered day 1 through 7).
+    
     The JSON structure MUST look exactly like this:
     {
       "matchScore": <number between 1 and 100>,
@@ -59,7 +64,13 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         { "skill": "Name of missing skill", "severity": "high" or "medium" or "low" }
       ],
       "preparationPlan": [
-        { "day": 1, "focus": "Theme of the day", "tasks": ["Task 1", "Task 2"] }
+        { "day": 1, "focus": "Day 1 Theme", "tasks": ["Task 1", "Task 2"] },
+        { "day": 2, "focus": "Day 2 Theme", "tasks": ["Task 1"] },
+        { "day": 3, "focus": "Day 3 Theme", "tasks": ["Task 1"] },
+        { "day": 4, "focus": "Day 4 Theme", "tasks": ["Task 1"] },
+        { "day": 5, "focus": "Day 5 Theme", "tasks": ["Task 1"] },
+        { "day": 6, "focus": "Day 6 Theme", "tasks": ["Task 1"] },
+        { "day": 7, "focus": "Day 7 Theme", "tasks": ["Task 1"] }
       ]
     }
 
@@ -68,7 +79,7 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
     Self Description: ${selfDescription}
     Job Description: ${jobDescription}
     `;
-
+    
     // helper: retry wrapper for transient AI errors
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
     const callGenerateContentWithRetries = async (opts, maxAttempts = 3) => {
