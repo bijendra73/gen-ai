@@ -7,10 +7,12 @@ const app = express();
 // ADD THIS LINE RIGHT HERE:
 app.set("trust proxy", 1);
 
+const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
+
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-  origin: 'https://gen-ai-coral-five.vercel.app',
+  origin: frontendOrigin,
   credentials: true
 }));
 

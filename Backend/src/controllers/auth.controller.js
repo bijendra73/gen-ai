@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const tokenBlacklistModel = require("../models/blacklist.model");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 /**
  * @name registerUserController
  * @description register a new user, expects username, email and password in the request body.
@@ -41,8 +43,8 @@ async function registerUserController(req, res) {
 
 res.cookie("token", token, {
   httpOnly: true,
-  secure: true,      // MUST be true in production for HTTPS (Render)
-  sameSite: "none",  // MUST be "none" if frontend and backend are on different websites
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
 });
 
   res.status(201).json({
@@ -72,16 +74,15 @@ async function loginUserController(req, res) {
 
   if (!user) {
     return res.status(400).json({
-      message: "Invalid email or password",
+      message: "Incorrect email. If you are a new user, please register first and then log in.",
     });
   }
 
-  // FIXED TYPO: changed 'isPasswardValid' to 'isPasswordValid'
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
     return res.status(400).json({
-      message: "Invalid email or password",
+      message: "Incorrect password.",
     });
   }
 
@@ -93,8 +94,8 @@ async function loginUserController(req, res) {
 
  res.cookie("token", token, {
   httpOnly: true,
-  secure: true,      // MUST be true in production for HTTPS (Render)
-  sameSite: "none",  // MUST be "none" if frontend and backend are on different websites
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
 });
 
   res.status(200).json({
@@ -121,8 +122,8 @@ async function logoutUserController(req, res) {
 
   res.cookie("token", token, {
   httpOnly: true,
-  secure: true,      // MUST be true in production for HTTPS (Render)
-  sameSite: "none",  // MUST be "none" if frontend and backend are on different websites
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
 });
 
   res.status(200).json({

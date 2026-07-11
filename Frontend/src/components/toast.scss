@@ -1,0 +1,21 @@
+.toast-container {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  width: auto;
+}
+
+.toast-message {
+  background: rgba(255, 45, 120, 0.95);
+  color: white;
+  padding: 0.95rem 1.25rem;
+  border-radius: 0.95rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  font-size: 0.95rem;
+  max-width: 440px;
+  line-height: 1.4;
+}

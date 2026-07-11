@@ -1,7 +1,8 @@
 import axios from "axios"
+import { API_BASE_URL } from "../../../config.js"
 
 const api = axios.create({
-    baseURL: "https://gen-ai-backend-bq90.onrender.com",
+    baseURL: API_BASE_URL,
     withCredentials: true
 })
 
@@ -33,6 +34,7 @@ export async function login({ email, password }) {
 
     } catch (err) {
         console.log(err)
+        throw err
     }
 
 }

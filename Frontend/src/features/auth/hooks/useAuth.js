@@ -11,7 +11,9 @@ export const useAuth = () => {
     try {
       const data = await login({ email, password });
       setUser(data.user);
+      return { success: true };
     } catch (err) {
+      return { success: false, error: err?.response?.data?.message || 'Login failed' };
     } finally {
       setLoading(false);
     }

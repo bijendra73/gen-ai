@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
+import Navbar from '../components/Navbar.jsx'
 
 const Home = () => {
 
@@ -9,8 +10,21 @@ const Home = () => {
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
     const resumeInputRef = useRef()
+    const historySectionRef = useRef(null)
 
     const navigate = useNavigate()
+
+    const handleScrollToHistory = () => {
+        if (historySectionRef.current) {
+            historySectionRef.current.scrollIntoView({ behavior: 'smooth' })
+        }
+    }
+
+    useEffect(() => {
+        const listener = () => handleScrollToHistory()
+        window.addEventListener('scrollToHistory', listener)
+        return () => window.removeEventListener('scrollToHistory', listener)
+    }, [])
 
     const handleGenerateReport = async () => {
         const resumeFile = resumeInputRef.current.files[ 0 ]
@@ -35,6 +49,8 @@ const Home = () => {
 
     return (
         <div className='home-page'>
+
+            <Navbar showFeatures showHistory showHome={false} />
 
             {/* Page Header */}
             <header className='page-header'>
@@ -61,7 +77,7 @@ const Home = () => {
                             placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
                             maxLength={5000}
                         />
-                        <div className='char-counter'>0 / 5000 chars</div>
+                        <div className='char-counter'>Max 5000 chars</div>
                     </div>
 
                     {/* Vertical Divider */}
@@ -74,9 +90,10 @@ const Home = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                             </span>
                             <h2>Your Profile</h2>
+                            <span className='badge badge--required'>Required</span>
                         </div>
 
-                        {/* Upload Resume */}
+                        {/* Upload Resume
                         <div className='upload-section'>
                             <label className='section-label'>
                                 Upload Resume
@@ -90,10 +107,10 @@ const Home = () => {
                                 <p className='dropzone__subtitle'>PDF or DOCX (Max 5MB)</p>
                                 <input ref={resumeInputRef} hidden type='file' id='resume' name='resume' accept='.pdf,.docx' />
                             </label>
-                        </div>
+                        </div> */}
 
-                        {/* OR Divider */}
-                        <div className='or-divider'><span>OR</span></div>
+                        {/* OR Divider
+                        <div className='or-divider'><span>OR</span></div> */}
 
                         {/* Quick Self-Description */}
                         <div className='self-description'>
@@ -103,7 +120,7 @@ const Home = () => {
                                 id='selfDescription'
                                 name='selfDescription'
                                 className='panel__textarea panel__textarea--short'
-                                placeholder="Briefly describe your experience, key skills, and years of experience if you don't have a resume handy..."
+                                placeholder="Briefly describe your experience, key skills, and years of experience in projects. e.g. 'I am a software engineer with 5 years of experience in full-stack development, specializing in React and Node.js. I have led multiple projects and have a strong background in system architecture and cloud services.'"
                             />
                         </div>
 
@@ -112,7 +129,7 @@ const Home = () => {
                             <span className='info-box__icon'>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" stroke="#1a1f27" strokeWidth="2" /><line x1="12" y1="16" x2="12.01" y2="16" stroke="#1a1f27" strokeWidth="2" /></svg>
                             </span>
-                            <p>Either a <strong>Resume</strong> or a <strong>Self Description</strong> is required to generate a personalized plan.</p>
+                            <p>A <strong>Self Description</strong> is required to generate a personalized plan.</p>
                         </div>
                     </div>
                 </div>
@@ -140,7 +157,7 @@ const Home = () => {
                 );
 
                 return validReports.length > 0 && (
-                    <section className='recent-reports'>
+                    <section className='recent-reports' ref={historySectionRef}>
                         <h2>My Recent Interview Plans</h2>
                         <ul className='reports-list'>
                             {/* 🌟 Step 2: Slice to only show the latest 4 items */}
