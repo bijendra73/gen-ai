@@ -76,20 +76,22 @@ const response = await callGenerateContentWithRetries({
         throw new Error("AI service returned an empty text response");
     }
 
-   try {
+ try {
         const rawData = JSON.parse(responseText);
         
-        // Helper to convert plain string arrays into safe objects for Mongoose embedded schemas
+        // Helper to convert plain string arrays into safe objects matching your required schema fields
         const mapToEmbeddedObjects = (arr) => {
             if (!Array.isArray(arr)) return [];
             return arr.map((item, index) => {
                 const strValue = typeof item === 'string' ? item : JSON.stringify(item);
                 return {
-                    day: index + 1, // 🌟 Changed from "Day 1" string to an actual Number
+                    day: index + 1,
                     focus: strValue,
                     tasks: [strValue],
                     text: strValue,
                     gap: strValue,
+                    skill: strValue,            // 🌟 Added to satisfy: skillGaps.0.skill is required
+                    severity: "Medium",         // 🌟 Added to satisfy: skillGaps.0.severity is required
                     question: strValue,
                     answer: "Suggested preparation step"
                 };
@@ -113,11 +115,13 @@ const response = await callGenerateContentWithRetries({
                 return arr.map((item, index) => {
                     const strValue = typeof item === 'string' ? item : JSON.stringify(item);
                     return {
-                        day: index + 1, // 🌟 Changed here as well for the fallback parser
+                        day: index + 1,
                         focus: strValue,
                         tasks: [strValue],
                         text: strValue,
                         gap: strValue,
+                        skill: strValue,        // 🌟 Added to fallback parser as well
+                        severity: "Medium",     // 🌟 Added to fallback parser as well
                         question: strValue,
                         answer: "Suggested preparation step"
                     };
@@ -135,7 +139,6 @@ const response = await callGenerateContentWithRetries({
             throw new Error("Failed to parse AI response JSON: " + secondErr.message);
         }
     }
-
 }
 
 async function generatePdfFromHtml(htmlContent) {
