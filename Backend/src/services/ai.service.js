@@ -33,11 +33,34 @@ const interviewReportSchema = z.object({
 })
 
 async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
-    const prompt = `Generate an interview report for a candidate with the following details:
-                        Resume: ${resume}
-                        Self Description: ${selfDescription}
-                        Job Description: ${jobDescription}
-`
+    // 🌟 1. Force the AI to use your exact database structural keys via the prompt
+    const prompt = `You are an expert technical interviewer. Evaluate the candidate's profile against the job description.
+    
+    CRITICAL: You must return a single JSON object matching the exact structure below. Do not include markdown wraps like \`\`\`json.
+    
+    The JSON structure MUST look exactly like this:
+    {
+      "matchScore": <number between 1 and 100>,
+      "technicalQuestions": [
+        { "question": "Technical question string", "answer": "Expected response details" }
+      ],
+      "behavioralQuestions": [
+        { "question": "Behavioral question string", "answer": "Key answer signals" }
+      ],
+      "skillGaps": [
+        { "skill": "Name of missing skill", "severity": "High" or "Medium" or "Low" }
+      ],
+      "preparationPlan": [
+        { "day": 1, "focus": "Theme of the day", "tasks": ["Task 1", "Task 2"] }
+      ]
+    }
+
+    Candidate Profile Details:
+    Resume Data: ${resume || "Not provided"}
+    Self Description: ${selfDescription}
+    Job Description: ${jobDescription}
+    `;
+
     // helper: retry wrapper for transient AI errors
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
     const callGenerateContentWithRetries = async (opts, maxAttempts = 3) => {
@@ -49,125 +72,48 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
                 return resp
             } catch (err) {
                 lastErr = err
-                // detect transient/unavailable errors from the GenAI client
                 const isTransient = (err && ((err.error && err.error.code === 503) || err.status === "UNAVAILABLE" || (err.statusCode && err.statusCode >= 500)))
                 attempt++
                 if (!isTransient || attempt >= maxAttempts) break
-                // exponential backoff
                 const backoffMs = 500 * Math.pow(2, attempt - 1)
                 await sleep(backoffMs)
             }
         }
         throw lastErr
     }
-const response = await callGenerateContentWithRetries({
+
+    // 🌟 2. Call the API with your preferred active model
+    const response = await callGenerateContentWithRetries({
         model: "gemini-3.1-flash-lite", 
         contents: prompt,
         config: {
-            responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(interviewReportSchema),
+            responseMimeType: "application/json"
         }
     })
 
-    // Safely extract text whether the SDK uses a method call or a direct property
     const responseText = typeof response.text === 'function' ? response.text() : response.text;
 
     if (!responseText) {
         throw new Error("AI service returned an empty text response");
     }
-try {
-        const rawData = JSON.parse(responseText);
+
+    // 🌟 3. Direct Parse and Clean Mapping
+    try {
+        const rawData = JSON.parse(responseText.replace(/```json|```/g, "").trim());
         
-        // Comprehensive fallback mapper to safely capture any variant key returned by the AI
-        const getField = (data, keys) => {
-            for (const key of keys) {
-                if (data[key] !== undefined) return data[key];
-            }
-            return null;
-        };
-
-        const mapToEmbeddedObjects = (val) => {
-            if (!val) return [];
-            const arr = Array.isArray(val) ? val : [val];
-            return arr.map((item, index) => {
-                const strValue = typeof item === 'string' ? item : (item.question || item.gap || item.focus || JSON.stringify(item));
-                return {
-                    day: index + 1,
-                    focus: strValue,
-                    tasks: [strValue],
-                    text: strValue,
-                    gap: strValue,
-                    skill: strValue,
-                    severity: "Medium",
-                    question: strValue,
-                    answer: "Suggested preparation step"
-                };
-            });
-        };
-
-        const score = getField(rawData, ['matchScore', 'match_score', 'score']);
-        const tech = getField(rawData, ['technicalQuestions', 'technical_questions', 'technical_skills_evaluation']);
-        const beh = getField(rawData, ['behavioralQuestions', 'behavioral_questions']);
-        const gaps = getField(rawData, ['skillGaps', 'skill_gaps', 'weaknesses']);
-        const plan = getField(rawData, ['preparationPlan', 'preparation_plan', 'strengths', 'key_highlights']);
+        const safeArray = (arr) => Array.isArray(arr) ? arr : [];
 
         return {
-            matchScore: typeof score === 'number' ? score : (parseInt(score, 10) || 0),
-            technicalQuestions: Array.isArray(tech) && tech.length && typeof tech[0] === 'object' ? tech : mapToEmbeddedObjects(tech),
-            behavioralQuestions: Array.isArray(beh) ? beh : mapToEmbeddedObjects(beh),
-            skillGaps: Array.isArray(gaps) && gaps.length && typeof gaps[0] === 'object' && gaps[0].skill ? gaps : mapToEmbeddedObjects(gaps),
-            preparationPlan: Array.isArray(plan) && plan.length && typeof plan[0] === 'object' && plan[0].focus ? plan : mapToEmbeddedObjects(plan)
+            matchScore: typeof rawData.matchScore === 'number' ? rawData.matchScore : (parseInt(rawData.matchScore || rawData.match_score, 10) || 70),
+            technicalQuestions: safeArray(rawData.technicalQuestions || rawData.technical_questions),
+            behavioralQuestions: safeArray(rawData.behavioralQuestions || rawData.behavioral_questions),
+            skillGaps: safeArray(rawData.skillGaps || rawData.skill_gaps),
+            preparationPlan: safeArray(rawData.preparationPlan || rawData.preparation_plan)
         };
     } catch (err) {
-        const cleanJson = responseText.replace(/```json|```/g, "").trim();
-        try {
-            const rawData = JSON.parse(cleanJson);
-            const getField = (data, keys) => {
-                for (const key of keys) {
-                    if (data[key] !== undefined) return data[key];
-                }
-                return null;
-            };
-
-            const mapToEmbeddedObjects = (val) => {
-                if (!val) return [];
-                const arr = Array.isArray(val) ? val : [val];
-                return arr.map((item, index) => {
-                    const strValue = typeof item === 'string' ? item : (item.question || item.gap || item.focus || JSON.stringify(item));
-                    return {
-                        day: index + 1,
-                        focus: strValue,
-                        tasks: [strValue],
-                        text: strValue,
-                        gap: strValue,
-                        skill: strValue,
-                        severity: "Medium",
-                        question: strValue,
-                        answer: "Suggested preparation step"
-                    };
-                });
-            };
-
-            const score = getField(rawData, ['matchScore', 'match_score', 'score']);
-            const tech = getField(rawData, ['technicalQuestions', 'technical_questions', 'technical_skills_evaluation']);
-            const beh = getField(rawData, ['behavioralQuestions', 'behavioral_questions']);
-            const gaps = getField(rawData, ['skillGaps', 'skill_gaps', 'weaknesses']);
-            const plan = getField(rawData, ['preparationPlan', 'preparation_plan', 'strengths', 'key_highlights']);
-
-            return {
-                matchScore: typeof score === 'number' ? score : (parseInt(score, 10) || 0),
-                technicalQuestions: Array.isArray(tech) && tech.length && typeof tech[0] === 'object' ? tech : mapToEmbeddedObjects(tech),
-                behavioralQuestions: Array.isArray(beh) ? beh : mapToEmbeddedObjects(beh),
-                skillGaps: Array.isArray(gaps) && gaps.length && typeof gaps[0] === 'object' && gaps[0].skill ? gaps : mapToEmbeddedObjects(gaps),
-                preparationPlan: Array.isArray(plan) && plan.length && typeof plan[0] === 'object' && plan[0].focus ? plan : mapToEmbeddedObjects(plan)
-            };
-        } catch (secondErr) {
-            throw new Error("Failed to parse AI response JSON: " + secondErr.message);
-        }
+        throw new Error("Critical error parsing structured report JSON: " + err.message);
     }
-
 }
-
 async function generatePdfFromHtml(htmlContent) {
   // Check if your app is running on live Render production
   const isProduction = process.env.NODE_ENV === 'production';
