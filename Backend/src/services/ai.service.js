@@ -33,17 +33,13 @@ const interviewReportSchema = z.object({
 })
 
 async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
-
-
     const prompt = `Generate an interview report for a candidate with the following details:
                         Resume: ${resume}
                         Self Description: ${selfDescription}
                         Job Description: ${jobDescription}
 `
-
     // helper: retry wrapper for transient AI errors
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
     const callGenerateContentWithRetries = async (opts, maxAttempts = 3) => {
         let attempt = 0
         let lastErr
@@ -64,31 +60,45 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         }
         throw lastErr
     }
-
-    const response = await callGenerateContentWithRetries({
-        model: "gemini-3-flash-preview",
+const response = await callGenerateContentWithRetries({
+        model: "gemini-2.5-flash", // Updated to a stable model
         contents: prompt,
         config: {
             responseMimeType: "application/json",
             responseSchema: zodToJsonSchema(interviewReportSchema),
         }
     })
-// Safely extract text whether the SDK uses a method call or a direct property
-const responseText = typeof response.text === 'function' ? response.text() : response.text;
 
-if (!responseText) {
-    throw new Error("AI service returned an empty text response");
-}
+    // Safely extract text whether the SDK uses a method call or a direct property
+    const responseText = typeof response.text === 'function' ? response.text() : response.text;
 
-try {
-    return JSON.parse(responseText);
-} catch (err) {
-    // Fallback: Clean up Markdown code blocks if the AI accidentally included them
-    const cleanJson = responseText.replace(/```json|```/g, "").trim();
+    if (!responseText) {
+        throw new Error("AI service returned an empty text response");
+    }
+
     try {
-        return JSON.parse(cleanJson);
-    } catch (secondErr) {
-        throw new Error("Failed to parse AI response JSON: " + secondErr.message);
+        const rawData = JSON.parse(responseText);
+        return {
+            matchScore: rawData.match_score || 0,
+            technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : (rawData.technical_skills_evaluation ? [{ question: rawData.technical_skills_evaluation }] : []),
+            behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
+            skillGaps: Array.isArray(rawData.weaknesses) ? rawData.weaknesses.map(w => ({ gap: w })) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
+            preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : (Array.isArray(rawData.strengths) ? rawData.strengths : [])
+        };
+    } catch (err) {
+        const cleanJson = responseText.replace(/```json|```/g, "").trim();
+        try {
+            const rawData = JSON.parse(cleanJson);
+            return {
+                matchScore: rawData.match_score || 0,
+                technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : (rawData.technical_skills_evaluation ? [{ question: rawData.technical_skills_evaluation }] : []),
+                behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
+                skillGaps: Array.isArray(rawData.weaknesses) ? rawData.weaknesses.map(w => ({ gap: w })) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
+                preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : (Array.isArray(rawData.strengths) ? rawData.strengths : [])
+            };
+        } catch (secondErr) {
+            throw new Error("Failed to parse AI response JSON: " + secondErr.message);
+        }
     }
 }
 }
