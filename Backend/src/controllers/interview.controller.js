@@ -1,4 +1,4 @@
-const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+const pdfParse = require("pdf-parse");
 const {
   generateInterviewReport,
   generateResumePdf,
@@ -21,7 +21,9 @@ async function generateInterViewReportController(req, res) {
     // parse resume text only if a file was uploaded
     let resumeText = "";
     if (req.file && req.file.buffer) {
-      const data = await pdfParse(req.file.buffer);
+      const parsePDF =
+        typeof pdfParse === "function" ? pdfParse : pdfParse.default;
+      const data = await parsePDF(req.file.buffer);
       resumeText = data && data.text ? data.text : "";
     }
 
@@ -49,20 +51,16 @@ async function generateInterViewReportController(req, res) {
 
     // Propagate AI service unavailability as 503
     if (err && (err?.error?.code === 503 || err?.status === "UNAVAILABLE")) {
-      return res
-        .status(503)
-        .json({
-          message: "AI service temporarily unavailable. Try again later.",
-          error: err.message,
-        });
+      return res.status(503).json({
+        message: "AI service temporarily unavailable. Try again later.",
+        error: err.message,
+      });
     }
 
-    return res
-      .status(500)
-      .json({
-        message: "Internal server error",
-        error: err && err.message ? err.message : String(err),
-      });
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err && err.message ? err.message : String(err),
+    });
   }
 }
 
