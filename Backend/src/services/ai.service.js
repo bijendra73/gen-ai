@@ -61,7 +61,7 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         throw lastErr
     }
 const response = await callGenerateContentWithRetries({
-        model: "gemini-2.5-flash", // Updated to a stable model
+        model: "gemini-3.5-flash", 
         contents: prompt,
         config: {
             responseMimeType: "application/json",
