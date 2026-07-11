@@ -76,25 +76,60 @@ const response = await callGenerateContentWithRetries({
         throw new Error("AI service returned an empty text response");
     }
 
-    try {
+   try {
         const rawData = JSON.parse(responseText);
+        
+        // Helper to convert plain string arrays into safe objects for Mongoose embedded schemas
+        const mapToEmbeddedObjects = (arr, keyName = "text") => {
+            if (!Array.isArray(arr)) return [];
+            return arr.map((item, index) => {
+                const strValue = typeof item === 'string' ? item : JSON.stringify(item);
+                return {
+                    day: `Day ${index + 1}`,
+                    focus: strValue,
+                    tasks: [strValue],
+                    text: strValue,
+                    gap: strValue,
+                    question: strValue,
+                    answer: "Suggested preparation step"
+                };
+            });
+        };
+
         return {
             matchScore: rawData.match_score || 0,
-            technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : (rawData.technical_skills_evaluation ? [{ question: rawData.technical_skills_evaluation }] : []),
+            technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : mapToEmbeddedObjects(rawData.technical_skills_evaluation),
             behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
-            skillGaps: Array.isArray(rawData.weaknesses) ? rawData.weaknesses.map(w => ({ gap: w })) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
-            preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : (Array.isArray(rawData.strengths) ? rawData.strengths : [])
+            skillGaps: Array.isArray(rawData.weaknesses) ? mapToEmbeddedObjects(rawData.weaknesses) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
+            preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : mapToEmbeddedObjects(rawData.strengths)
         };
     } catch (err) {
         const cleanJson = responseText.replace(/```json|```/g, "").trim();
         try {
             const rawData = JSON.parse(cleanJson);
+            
+            const mapToEmbeddedObjects = (arr) => {
+                if (!Array.isArray(arr)) return [];
+                return arr.map((item, index) => {
+                    const strValue = typeof item === 'string' ? item : JSON.stringify(item);
+                    return {
+                        day: `Day ${index + 1}`,
+                        focus: strValue,
+                        tasks: [strValue],
+                        text: strValue,
+                        gap: strValue,
+                        question: strValue,
+                        answer: "Suggested preparation step"
+                    };
+                });
+            };
+
             return {
                 matchScore: rawData.match_score || 0,
-                technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : (rawData.technical_skills_evaluation ? [{ question: rawData.technical_skills_evaluation }] : []),
+                technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : mapToEmbeddedObjects(rawData.technical_skills_evaluation),
                 behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
-                skillGaps: Array.isArray(rawData.weaknesses) ? rawData.weaknesses.map(w => ({ gap: w })) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
-                preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : (Array.isArray(rawData.strengths) ? rawData.strengths : [])
+                skillGaps: Array.isArray(rawData.weaknesses) ? mapToEmbeddedObjects(rawData.weaknesses) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
+                preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : mapToEmbeddedObjects(rawData.strengths)
             };
         } catch (secondErr) {
             throw new Error("Failed to parse AI response JSON: " + secondErr.message);
