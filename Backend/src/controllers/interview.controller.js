@@ -21,9 +21,10 @@ async function generateInterViewReportController(req, res) {
     // parse resume text only if a file was uploaded
     let resumeText = "";
     if (req.file && req.file.buffer) {
-      const parsePDF =
-        typeof pdfParse === "function" ? pdfParse : pdfParse.default;
-      const data = await parsePDF(req.file.buffer);
+      // Use require directly to ensure we capture the main function entry point
+      const rawPdfParse = require("pdf-parse");
+
+      const data = await rawPdfParse(req.file.buffer);
       resumeText = data && data.text ? data.text : "";
     }
 
