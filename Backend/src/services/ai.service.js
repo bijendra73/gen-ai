@@ -73,20 +73,26 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
             responseSchema: zodToJsonSchema(interviewReportSchema),
         }
     })
+// 2. Safely extract text whether the SDK uses a method call or a direct property
+    const responseText = typeof response.text === 'function' ? response.text() : response.text;
 
-    if (!response || !response.text) {
-        throw new Error("AI service returned empty response")
+    if (!responseText) {
+        throw new Error("AI service returned an empty text response");
     }
 
+    // 3. Parse and return the structured JSON data
     try {
-        return JSON.parse(response.text)
+        return JSON.parse(responseText);
     } catch (err) {
-        throw new Error("Failed to parse AI response: " + (err && err.message ? err.message : String(err)))
+        // Fallback: Clean up Markdown code blocks if the AI accidentally included them
+        const cleanJson = responseText.replace(/```json|```/g, "").trim();
+        try {
+            return JSON.parse(cleanJson);
+        } catch (secondErr) {
+            throw new Error("Failed to parse AI response JSON: " + secondErr.message);
+        }
     }
-
-
 }
-
 
 
 async function generatePdfFromHtml(htmlContent) {
