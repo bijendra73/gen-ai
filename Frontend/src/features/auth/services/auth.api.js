@@ -46,6 +46,7 @@ export async function logout() {
 
     } catch (err) {
 
+        console.log("Session expired, please log in.");
     }
 }
 
@@ -57,7 +58,7 @@ export async function getMe() {
         return response.data
 
     } catch (err) {
-        console.log(err)
+        console.log("Session expired, please log in.");
     }
 
 }
