@@ -80,12 +80,12 @@ const response = await callGenerateContentWithRetries({
         const rawData = JSON.parse(responseText);
         
         // Helper to convert plain string arrays into safe objects for Mongoose embedded schemas
-        const mapToEmbeddedObjects = (arr, keyName = "text") => {
+        const mapToEmbeddedObjects = (arr) => {
             if (!Array.isArray(arr)) return [];
             return arr.map((item, index) => {
                 const strValue = typeof item === 'string' ? item : JSON.stringify(item);
                 return {
-                    day: `Day ${index + 1}`,
+                    day: index + 1, // 🌟 Changed from "Day 1" string to an actual Number
                     focus: strValue,
                     tasks: [strValue],
                     text: strValue,
@@ -113,7 +113,7 @@ const response = await callGenerateContentWithRetries({
                 return arr.map((item, index) => {
                     const strValue = typeof item === 'string' ? item : JSON.stringify(item);
                     return {
-                        day: `Day ${index + 1}`,
+                        day: index + 1, // 🌟 Changed here as well for the fallback parser
                         focus: strValue,
                         tasks: [strValue],
                         text: strValue,
@@ -135,8 +135,8 @@ const response = await callGenerateContentWithRetries({
             throw new Error("Failed to parse AI response JSON: " + secondErr.message);
         }
     }
-}
 
+}
 
 async function generatePdfFromHtml(htmlContent) {
   // Check if your app is running on live Render production
