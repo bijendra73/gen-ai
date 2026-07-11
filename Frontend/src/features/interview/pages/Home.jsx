@@ -26,18 +26,27 @@ const Home = () => {
         return () => window.removeEventListener('scrollToHistory', listener)
     }, [])
 
-    const handleGenerateReport = async () => {
-        const resumeFile = resumeInputRef.current.files[ 0 ]
-        const data = await generateReport({ jobDescription, selfDescription, resumeFile })
-        if (!data) {
-            // API failed or returned no report; surface a user-friendly message
-            console.error('Failed to generate interview report:', data)
-            alert('Failed to generate interview report. Please try again later.')
-            return
-        }
+  const handleGenerateReport = async () => {
+    // 1. Add optional chaining (?.) so it returns undefined instead of crashing
+    const resumeFile = resumeInputRef.current?.files?.[0] || null;
 
-        navigate(`/interview/${data._id}`)
+    // 2. Fallback check: If there's no uploaded file, make sure they at least typed a self-description
+    if (!resumeFile && !selfDescription.trim()) {
+        alert('Please provide either a written profile description or upload a resume file.');
+        return;
     }
+
+    const data = await generateReport({ jobDescription, selfDescription, resumeFile })
+    
+    if (!data) {
+        // API failed or returned no report; surface a user-friendly message
+        console.error('Failed to generate interview report:', data)
+        alert('Failed to generate interview report. Please try again later.')
+        return;
+    }
+
+    navigate(`/interview/${data._id}`)
+}
 
     if (loading) {
         return (
