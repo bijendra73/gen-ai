@@ -101,7 +101,7 @@ const response = await callGenerateContentWithRetries({
         }
     }
 }
-}
+
 
 async function generatePdfFromHtml(htmlContent) {
   // Check if your app is running on live Render production
