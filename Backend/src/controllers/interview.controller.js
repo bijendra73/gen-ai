@@ -102,7 +102,7 @@ async function getInterviewReportByIdController(req, res) {
  * @description Controller to get all interview reports of logged in user.
  */
 async function getAllInterviewReportsController(req, res) {
-  // Remove the field exclusions so the frontend gets all properties during testing
+  // Remove the negative selection strings so data safely reaches your frontend dashboard
   const interviewReports = await interviewReportModel
     .find({ user: req.user.id })
     .sort({ createdAt: -1 });
