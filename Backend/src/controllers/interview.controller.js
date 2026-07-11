@@ -43,6 +43,7 @@ async function generateInterViewReportController(req, res) {
       selfDescription,
       jobDescription,
     });
+console.log("--- GEMINI RETURNED RAW DATA: ---", JSON.stringify(interViewReportByAi, null, 2));
 
     const interviewReport = await interviewReportModel.create({
       user: req.user.id,
