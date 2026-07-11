@@ -75,70 +75,97 @@ const response = await callGenerateContentWithRetries({
     if (!responseText) {
         throw new Error("AI service returned an empty text response");
     }
-
- try {
+try {
         const rawData = JSON.parse(responseText);
         
-        // Helper to convert plain string arrays into safe objects matching your required schema fields
-        const mapToEmbeddedObjects = (arr) => {
-            if (!Array.isArray(arr)) return [];
+        // Comprehensive fallback mapper to safely capture any variant key returned by the AI
+        const getField = (data, keys) => {
+            for (const key of keys) {
+                if (data[key] !== undefined) return data[key];
+            }
+            return null;
+        };
+
+        const mapToEmbeddedObjects = (val) => {
+            if (!val) return [];
+            const arr = Array.isArray(val) ? val : [val];
             return arr.map((item, index) => {
-                const strValue = typeof item === 'string' ? item : JSON.stringify(item);
+                const strValue = typeof item === 'string' ? item : (item.question || item.gap || item.focus || JSON.stringify(item));
                 return {
                     day: index + 1,
                     focus: strValue,
                     tasks: [strValue],
                     text: strValue,
                     gap: strValue,
-                    skill: strValue,            // 🌟 Added to satisfy: skillGaps.0.skill is required
-                    severity: "Medium",         // 🌟 Added to satisfy: skillGaps.0.severity is required
+                    skill: strValue,
+                    severity: "Medium",
                     question: strValue,
                     answer: "Suggested preparation step"
                 };
             });
         };
 
+        const score = getField(rawData, ['matchScore', 'match_score', 'score']);
+        const tech = getField(rawData, ['technicalQuestions', 'technical_questions', 'technical_skills_evaluation']);
+        const beh = getField(rawData, ['behavioralQuestions', 'behavioral_questions']);
+        const gaps = getField(rawData, ['skillGaps', 'skill_gaps', 'weaknesses']);
+        const plan = getField(rawData, ['preparationPlan', 'preparation_plan', 'strengths', 'key_highlights']);
+
         return {
-            matchScore: rawData.match_score || 0,
-            technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : mapToEmbeddedObjects(rawData.technical_skills_evaluation),
-            behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
-            skillGaps: Array.isArray(rawData.weaknesses) ? mapToEmbeddedObjects(rawData.weaknesses) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
-            preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : mapToEmbeddedObjects(rawData.strengths)
+            matchScore: typeof score === 'number' ? score : (parseInt(score, 10) || 0),
+            technicalQuestions: Array.isArray(tech) && tech.length && typeof tech[0] === 'object' ? tech : mapToEmbeddedObjects(tech),
+            behavioralQuestions: Array.isArray(beh) ? beh : mapToEmbeddedObjects(beh),
+            skillGaps: Array.isArray(gaps) && gaps.length && typeof gaps[0] === 'object' && gaps[0].skill ? gaps : mapToEmbeddedObjects(gaps),
+            preparationPlan: Array.isArray(plan) && plan.length && typeof plan[0] === 'object' && plan[0].focus ? plan : mapToEmbeddedObjects(plan)
         };
     } catch (err) {
         const cleanJson = responseText.replace(/```json|```/g, "").trim();
         try {
             const rawData = JSON.parse(cleanJson);
-            
-            const mapToEmbeddedObjects = (arr) => {
-                if (!Array.isArray(arr)) return [];
+            const getField = (data, keys) => {
+                for (const key of keys) {
+                    if (data[key] !== undefined) return data[key];
+                }
+                return null;
+            };
+
+            const mapToEmbeddedObjects = (val) => {
+                if (!val) return [];
+                const arr = Array.isArray(val) ? val : [val];
                 return arr.map((item, index) => {
-                    const strValue = typeof item === 'string' ? item : JSON.stringify(item);
+                    const strValue = typeof item === 'string' ? item : (item.question || item.gap || item.focus || JSON.stringify(item));
                     return {
                         day: index + 1,
                         focus: strValue,
                         tasks: [strValue],
                         text: strValue,
                         gap: strValue,
-                        skill: strValue,        // 🌟 Added to fallback parser as well
-                        severity: "Medium",     // 🌟 Added to fallback parser as well
+                        skill: strValue,
+                        severity: "Medium",
                         question: strValue,
                         answer: "Suggested preparation step"
                     };
                 });
             };
 
+            const score = getField(rawData, ['matchScore', 'match_score', 'score']);
+            const tech = getField(rawData, ['technicalQuestions', 'technical_questions', 'technical_skills_evaluation']);
+            const beh = getField(rawData, ['behavioralQuestions', 'behavioral_questions']);
+            const gaps = getField(rawData, ['skillGaps', 'skill_gaps', 'weaknesses']);
+            const plan = getField(rawData, ['preparationPlan', 'preparation_plan', 'strengths', 'key_highlights']);
+
             return {
-                matchScore: rawData.match_score || 0,
-                technicalQuestions: Array.isArray(rawData.technical_questions) ? rawData.technical_questions : mapToEmbeddedObjects(rawData.technical_skills_evaluation),
-                behavioralQuestions: Array.isArray(rawData.behavioral_questions) ? rawData.behavioral_questions : [],
-                skillGaps: Array.isArray(rawData.weaknesses) ? mapToEmbeddedObjects(rawData.weaknesses) : (Array.isArray(rawData.skill_gaps) ? rawData.skill_gaps : []),
-                preparationPlan: Array.isArray(rawData.preparation_plan) ? rawData.preparation_plan : mapToEmbeddedObjects(rawData.strengths)
+                matchScore: typeof score === 'number' ? score : (parseInt(score, 10) || 0),
+                technicalQuestions: Array.isArray(tech) && tech.length && typeof tech[0] === 'object' ? tech : mapToEmbeddedObjects(tech),
+                behavioralQuestions: Array.isArray(beh) ? beh : mapToEmbeddedObjects(beh),
+                skillGaps: Array.isArray(gaps) && gaps.length && typeof gaps[0] === 'object' && gaps[0].skill ? gaps : mapToEmbeddedObjects(gaps),
+                preparationPlan: Array.isArray(plan) && plan.length && typeof plan[0] === 'object' && plan[0].focus ? plan : mapToEmbeddedObjects(plan)
             };
         } catch (secondErr) {
             throw new Error("Failed to parse AI response JSON: " + secondErr.message);
         }
     }
+
 }
 
 async function generatePdfFromHtml(htmlContent) {
