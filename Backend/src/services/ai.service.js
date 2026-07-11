@@ -93,14 +93,10 @@ async function generatePdfFromHtml(htmlContent) {
   // Check if your app is running on live Render production
   const isProduction = process.env.NODE_ENV === 'production';
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    // On Render, we use the global Debian/Ubuntu Chrome binary location
-    executablePath: isProduction 
-      ? '/usr/bin/google-chrome' 
-      : undefined
-  });
+ const browser = await puppeteer.launch({
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+});
 
   const page = await browser.newPage();
   await page.setContent(htmlContent, { waitUntil: "networkidle0" });
