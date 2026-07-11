@@ -33,7 +33,7 @@ const interviewReportSchema = z.object({
 })
 
 async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
-    // 🌟 1. Force the AI to use your exact database structural keys via the prompt
+    // 🌟 Updated the schema instructions to explicitly generate lowercase severities and the required intention fields
     const prompt = `You are an expert technical interviewer. Evaluate the candidate's profile against the job description.
     
     CRITICAL: You must return a single JSON object matching the exact structure below. Do not include markdown wraps like \`\`\`json.
@@ -42,13 +42,21 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
     {
       "matchScore": <number between 1 and 100>,
       "technicalQuestions": [
-        { "question": "Technical question string", "answer": "Expected response details" }
+        { 
+          "question": "Technical question string", 
+          "answer": "Expected response details",
+          "intention": "What this question evaluates or why it is asked"
+        }
       ],
       "behavioralQuestions": [
-        { "question": "Behavioral question string", "answer": "Key answer signals" }
+        { 
+          "question": "Behavioral question string", 
+          "answer": "Key answer signals",
+          "intention": "What this question evaluates or why it is asked"
+        }
       ],
       "skillGaps": [
-        { "skill": "Name of missing skill", "severity": "High" or "Medium" or "Low" }
+        { "skill": "Name of missing skill", "severity": "high" or "medium" or "low" }
       ],
       "preparationPlan": [
         { "day": 1, "focus": "Theme of the day", "tasks": ["Task 1", "Task 2"] }
@@ -82,7 +90,6 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         throw lastErr
     }
 
-    // 🌟 2. Call the API with your preferred active model
     const response = await callGenerateContentWithRetries({
         model: "gemini-3.1-flash-lite", 
         contents: prompt,
@@ -97,17 +104,39 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
         throw new Error("AI service returned an empty text response");
     }
 
-    // 🌟 3. Direct Parse and Clean Mapping
     try {
         const rawData = JSON.parse(responseText.replace(/```json|```/g, "").trim());
         
+        // Helper to ensure questions have the required 'intention' string
+        const mapQuestions = (arr) => {
+            if (!Array.isArray(arr)) return [];
+            return arr.map(q => ({
+                question: q.question || "Technical Concept Evaluation",
+                answer: q.answer || "Demonstration of core engineering proficiency",
+                intention: q.intention || "Evaluate candidate familiarity with full stack architecture constraints."
+            }));
+        };
+
+        // Helper to map severities safely to lowercase format
+        const mapGaps = (arr) => {
+            if (!Array.isArray(arr)) return [];
+            return arr.map(g => {
+                let sev = String(g.severity || "medium").toLowerCase();
+                if (!["high", "medium", "low"].includes(sev)) sev = "medium";
+                return {
+                    skill: g.skill || "Full-Stack System Optimization",
+                    severity: sev
+                };
+            });
+        };
+
         const safeArray = (arr) => Array.isArray(arr) ? arr : [];
 
         return {
             matchScore: typeof rawData.matchScore === 'number' ? rawData.matchScore : (parseInt(rawData.matchScore || rawData.match_score, 10) || 70),
-            technicalQuestions: safeArray(rawData.technicalQuestions || rawData.technical_questions),
-            behavioralQuestions: safeArray(rawData.behavioralQuestions || rawData.behavioral_questions),
-            skillGaps: safeArray(rawData.skillGaps || rawData.skill_gaps),
+            technicalQuestions: mapQuestions(rawData.technicalQuestions || rawData.technical_questions),
+            behavioralQuestions: mapQuestions(rawData.behavioralQuestions || rawData.behavioral_questions),
+            skillGaps: mapGaps(rawData.skillGaps || rawData.skill_gaps),
             preparationPlan: safeArray(rawData.preparationPlan || rawData.preparation_plan)
         };
     } catch (err) {
