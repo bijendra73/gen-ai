@@ -21,10 +21,20 @@ async function generateInterViewReportController(req, res) {
     // parse resume text only if a file was uploaded
     let resumeText = "";
     if (req.file && req.file.buffer) {
-      // Use require directly to ensure we capture the main function entry point
-      const rawPdfParse = require("pdf-parse");
+      const pdf = require("pdf-parse");
 
-      const data = await rawPdfParse(req.file.buffer);
+      // Clean, runtime check to see exactly where the function is hidden
+      const parseFunction =
+        typeof pdf === "function"
+          ? pdf
+          : pdf.default ||
+            Object.values(pdf).find((fn) => typeof fn === "function");
+
+      if (!parseFunction) {
+        throw new Error("Could not find a valid pdf-parse execution function");
+      }
+
+      const data = await parseFunction(req.file.buffer);
       resumeText = data && data.text ? data.text : "";
     }
 
